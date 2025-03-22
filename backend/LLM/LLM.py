@@ -1,7 +1,7 @@
 from operator import itemgetter
 from typing import Any, Dict, List
 from termcolor import colored
-import os, sys
+import os, sys, re
 
 from huggingface_hub import hf_hub_download
 model_path = hf_hub_download(
@@ -11,8 +11,11 @@ model_path = hf_hub_download(
 )
 
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 
+# Load the manuals
 file_paths = [
     r"C:\Users\ramig\OneDrive - Virginia Tech\CS 4624\Capstone\Capstone\backend\INTEGRATION_Manual_1.pdf",
     r"C:\Users\ramig\OneDrive - Virginia Tech\CS 4624\Capstone\Capstone\backend\INTEGRATION_Manual_2.pdf"
@@ -22,7 +25,7 @@ text_to_split = []
 
 for file in file_paths:
     if file.endswith('.pdf'):
-        print(file)
+        print(f"Loading: {file}")
         loader = PyPDFLoader(file)
         pdf_file = loader.load()
         text_to_split.append(pdf_file)
@@ -31,21 +34,24 @@ for file in file_paths:
         doc_file = loader.load()
         text_to_split.append(doc_file)
 
+# Combine all text into one string
+all_text = ""
+for doc_group in text_to_split:
+    for doc in doc_group:
+        all_text += doc.page_content + "\n"
+
+# Split text by chapters
+chapters = re.split(r'(?:CHAPTER|Chapter|Section)\s+\d+[:.]?', all_text)
+
+# Clean & package into LangChain Document objects
 text_splitted = []
+for i, chap in enumerate(chapters):
+    cleaned = chap.strip()
+    if cleaned:
+        doc = Document(page_content=cleaned, metadata={"chunk_id": f"chapter_{i}"})
+        text_splitted.append(doc)
 
-splitter = RecursiveCharacterTextSplitter(
-    separators=['\n\n', '\n'],
-    chunk_size=1000,
-    chunk_overlap=100
-)
-
-for t in text_to_split:
-    text_chunks = splitter.split_documents(t)
-    text_splitted += text_chunks
-
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-
+# Embedding and Vector Store Setup
 embeddings = HuggingFaceEmbeddings()
 CHROMA_PATH = "./chroma_db"
 
@@ -62,6 +68,7 @@ else:
     db.persist()
     print("ChromaDB cached.")
 
+# Test the retriever
 query = "Alternate Traffic Assignment/Routing methods options"
 retriever = db.as_retriever(search_kwargs={"k": 1})
 retrieved_docs = retriever.invoke(query)
