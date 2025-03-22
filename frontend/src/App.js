@@ -39,12 +39,9 @@ function App() {
   return (
     <div className="App">
       <Chatbot user={user} />
-      <button
-        style={{ marginTop: "1rem" }}
-        onClick={() => (window.location.href = "http://localhost:5050/logout")}
-      >
-        Logout
-      </button>
+
+     
+      
     </div>
   );
 }
