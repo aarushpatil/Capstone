@@ -1,11 +1,16 @@
 import React, { useState } from "react";
-import "./Chatbot.css";
 import axios from "axios";
+import "./Chatbot.css";
 
 const Chatbot = () => {
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Trigger the Google OAuth login via Flask
+  const handleLogin = () => {
+    window.location.href = "http://localhost:5050/login";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,30 +20,24 @@ const Chatbot = () => {
     setConversation((prev) => [...prev, { sender: "user", text: message }]);
 
     try {
-      console.log("Sending request to:", "http://127.0.0.1:5000/api/chat");
-      const response = await axios.post("http://127.0.0.1:5000/api/chat", {
-        message: message,
-      });
-      console.log("Response received:", response.data);
+      // Send the request with credentials to include the session cookie
+   const response = await axios.post(
+  "http://localhost:5050/api/chat",
+  { message },
+  { withCredentials: true }
+);
+
       setConversation((prev) => [
         ...prev,
         { sender: "bot", text: response.data.response },
       ]);
     } catch (error) {
-      console.error("Full Error Details:", error);
-      console.error("Request Config:", error.config);
-      if (error.response) {
-        console.error("Response Data:", error.response.data);
-        console.error("Response Status:", error.response.status);
-        console.error("Response Headers:", error.response.headers);
-      } else if (error.request) {
-        console.error("Request:", error.request);
-      }
+      console.error("Error details:", error);
       setConversation((prev) => [
         ...prev,
         {
           sender: "bot",
-          text: "Connection error. Please check if the backend is running.",
+          text: "Connection error. Please check if you are logged in and the backend is running.",
         },
       ]);
     } finally {
@@ -50,6 +49,9 @@ const Chatbot = () => {
   return (
     <div className="chat-container">
       <h1>Transportation Chatbot</h1>
+      {/* Login Button for Google OAuth */}
+      <button onClick={handleLogin}>Login with Google</button>
+      
       <div className="chat-window">
         {conversation.map((msg, index) => (
           <div key={index} className={`message ${msg.sender}`}>
