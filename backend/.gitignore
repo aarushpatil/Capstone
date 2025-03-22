@@ -1,2 +1,4 @@
 capstoneVenv
 .env
+models--*/
+chroma_db/
