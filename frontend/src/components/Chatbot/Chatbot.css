@@ -88,3 +88,27 @@ h1 {
   background-color: #ccc;
   cursor: not-allowed;
 }
+
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f2f2f2;
+  border-bottom: 1px solid #ddd;
+}
+
+.logout-button {
+  background-color: #e53935;
+  border: none;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
+}

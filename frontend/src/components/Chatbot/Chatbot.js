@@ -7,11 +7,6 @@ const Chatbot = () => {
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Trigger the Google OAuth login via Flask
-  const handleLogin = () => {
-    window.location.href = "http://localhost:5050/login";
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!message.trim() || isLoading) return;
@@ -21,12 +16,11 @@ const Chatbot = () => {
 
     try {
       // Send the request with credentials to include the session cookie
-   const response = await axios.post(
-  "http://localhost:5050/api/chat",
-  { message },
-  { withCredentials: true }
-);
-
+      const response = await axios.post(
+        "http://localhost:5050/api/chat",
+        { message },
+        { withCredentials: true }
+      );
       setConversation((prev) => [
         ...prev,
         { sender: "bot", text: response.data.response },
@@ -48,10 +42,16 @@ const Chatbot = () => {
 
   return (
     <div className="chat-container">
-      <h1>Transportation Chatbot</h1>
-      {/* Login Button for Google OAuth */}
-      <button onClick={handleLogin}>Login with Google</button>
-      
+      <header className="chat-header">
+        <h1>Transportation Chatbot</h1>
+        <button
+          className="logout-button"
+          onClick={() => (window.location.href = "http://localhost:5050/logout")}
+        >
+          Logout
+        </button>
+      </header>
+
       <div className="chat-window">
         {conversation.map((msg, index) => (
           <div key={index} className={`message ${msg.sender}`}>
@@ -64,6 +64,7 @@ const Chatbot = () => {
           </div>
         )}
       </div>
+
       <form onSubmit={handleSubmit} className="chat-form">
         <input
           type="text"
