@@ -1,8 +1,9 @@
-# Import necessary modules for document loading, text splitting, embeddings, vector storage, and LLM integration.
+# llm.py
+import os
 from operator import itemgetter
 from typing import Any, Dict, List
 from termcolor import colored
-import os, sys
+import sys
 
 # Download the local model from Hugging Face Hub
 from huggingface_hub import hf_hub_download
@@ -92,6 +93,8 @@ class SafeLlamaCpp(BaseLlamaCpp):
             pass
 
 # Integrate the local LLM into a RetrievalQA chain using the patched class.
+from langchain.chains import RetrievalQA
+
 llm = SafeLlamaCpp(
     model_path=model_path,
     n_ctx=2048,
@@ -99,8 +102,6 @@ llm = SafeLlamaCpp(
     max_tokens=512,
     verbose=True
 )
-
-from langchain.chains import RetrievalQA
 
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
@@ -110,12 +111,17 @@ qa_chain = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": custom_prompt}
 )
 
-# Query the chain using the new invoke() method.
-query = "How does setting the en-route path update interval to 0 affect vehicle routing for different routing methods?"
-result = qa_chain.invoke({"query": query})
-
-# Print out only the answer.
-print("Answer:")
-print(result["result"])
-
-# Note: The explicit llm.close() call has been removed since SafeLlamaCpp handles cleanup.
+# ---------------------------------------------------------------------
+# ADD THIS HELPER FUNCTION AT THE END (MINIMAL CHANGE)
+# ---------------------------------------------------------------------
+def get_llm_response(query: str) -> str:
+    """
+    Takes a user query string and returns the LLM's best answer 
+    using the already-initialized qa_chain.
+    """
+    try:
+        result = qa_chain.invoke({"query": query})
+        return result["result"]
+    except Exception as e:
+        print("Error in get_llm_response:", str(e))
+        return f"Error: {str(e)}"

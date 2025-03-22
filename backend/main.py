@@ -6,6 +6,9 @@ from flask import Flask, redirect, url_for, session, request, jsonify
 from flask_cors import CORS
 from authlib.integrations.flask_client import OAuth
 
+# Import the helper from llm.py to generate responses from the LLM.
+from LLM.LLM import get_llm_response
+
 # ------------------------------------------
 # Flask App Setup
 # ------------------------------------------
@@ -75,11 +78,14 @@ def chat():
     try:
         data = request.get_json()
         print("Received request:", data, flush=True)
-        user_message = data.get("message", "")
-        response = f"{user_message}"
-        return jsonify({"response": response, "status": "success"})
+        user_message = data.get("message", "").strip()
+
+        # Call the helper from llm.py to get the response from the LLM.
+        llm_response = get_llm_response(user_message)
+
+        return jsonify({"response": llm_response, "status": "success"})
     except Exception as e:
-        print("Error:", str(e), flush=True)
+        print("Error in /api/chat:", str(e), flush=True)
         return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
 
 @app.route("/api/user", methods=["GET"])
