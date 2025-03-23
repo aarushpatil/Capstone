@@ -3,7 +3,7 @@ from operator import itemgetter
 from typing import Any, Dict, List
 from termcolor import colored
 import sys
-from chapterSplitting import getManualChunks
+from LLM.chapterSplitting import getManualChunks
 
 # Download the local model from Hugging Face Hub
 from huggingface_hub import hf_hub_download
@@ -47,52 +47,8 @@ def getTextSplitted():
     return text_splitted
 
 
-
-# List of document file names.
-# file_names = ["INTEGRATION_Manual_1.pdf", "INTEGRATION_Manual_2.pdf"]
-
-# # Create full file paths.
-# file_paths = [os.path.join(manuals_dir, f) for f in file_names]
-# file_paths = ["/app/INTEGRATION_Manual_1.pdf", "/app/INTEGRATION_Manual_2.pdf"]
-
-# # Load the documents.
-# text_to_split = []
-# for file in file_paths:
-#     if file.endswith('.pdf'):
-#         print("Loading:", file)
-#         loader = PyPDFLoader(file)
-#         pdf_file = loader.load()
-#         text_to_split.append(pdf_file)
-#     elif file.endswith('.doc') or file.endswith('.docx'):
-#         loader = Docx2txtLoader(file)
-#         doc_file = loader.load()
-#         text_to_split.append(doc_file)
-
-# # Split the loaded documents into chunks.
-# text_splitted = []
-# splitter = RecursiveCharacterTextSplitter(
-#     separators=['\n\n', '\n'],
-#     chunk_size=500,
-#     chunk_overlap=100
-# )
-# for t in text_to_split:
-#     text_chunks = splitter.split_documents(t)
-#     text_splitted += text_chunks
-
-# Create embeddings and build the vector store.
-
-
-
-
-
-
-
-
-
-
-
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma
 
 embeddings = HuggingFaceEmbeddings()  # Uses all-mpnet-base-v2 by default.
 
@@ -134,7 +90,7 @@ llm = SafeLlamaCpp(
     model_path=model_path,
     n_ctx=2048,
     temperature=0.1,
-    max_tokens=256,
+    max_tokens=512,
     verbose=False
 )
 

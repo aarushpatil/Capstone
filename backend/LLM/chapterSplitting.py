@@ -44,14 +44,14 @@ def extract_chapters_by_page_numbers(pdf_path, page_numbers):
 
 def getFirstManual():
     # Example usage:
-    pdf_file = "../INTEGRATION_Manual_1.pdf"
+    pdf_file = "./INTEGRATION_Manual_1.pdf"
     page_numbers = [1, 2, 4, 5, 8, 12, 30, 51, 59, 61]  # Example page numbers (chapter ends)
     chapter_strings = extract_chapters_by_page_numbers(pdf_file, page_numbers)
     return chapter_strings
 
 def getSecondManual():
     # Example usage:
-    pdf_file = "../INTEGRATION_Manual_2.pdf"
+    pdf_file = "./INTEGRATION_Manual_2.pdf"
     page_numbers = [1, 2, 4, 5, 8, 12, 30, 51, 59, 61]  # NEED TO ACTUALLY FIX THESE VALUES!!
     chapter_strings = extract_chapters_by_page_numbers(pdf_file, page_numbers)
     return chapter_strings

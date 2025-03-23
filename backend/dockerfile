@@ -5,9 +5,9 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy the script and manuals into the container
-COPY ./LLM/LLM.py ./LLM/
-COPY ../INTEGRATION_Manual_1.pdf ../INTEGRATION_Manual_2.pdf ./
-COPY ./main.py ./
+# COPY ./LLM/LLM.py ./LLM/
+# COPY ../INTEGRATION_Manual_1.pdf ../INTEGRATION_Manual_2.pdf ./
+# COPY ./main.py ./
 
 
 # Download the model within the Docker build process.
@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the requirements file (if you have one) and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# RUN pip install --no-cache-dir -r requirements.txt
 
 # Install additional needed libraries (if they are not in requirements.txt)
 # RUN pip install --no-cache-dir termcolor langchain huggingface_hub langchain_community langchain_huggingface chromadb pypdf python-docx llama-cpp-python dotenv
