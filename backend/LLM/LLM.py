@@ -92,7 +92,7 @@ def getTextSplitted():
 
 
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 
 embeddings = HuggingFaceEmbeddings()  # Uses all-mpnet-base-v2 by default.
 
@@ -111,26 +111,9 @@ else:
 
 
 # Create a retriever from the vector store.
-retriever = db.as_retriever(search_kwargs={"k": 1})
+retriever = db.as_retriever(search_kwargs={"k": 7}) #higher this number is the more info chroma will retrieve
 
 # Define a custom prompt template to constrain the output.
-from langchain.prompts import PromptTemplate
-prompt_template = """
-You are a concise and factual assistant. Use ONLY the context provided below to answer the question.
-Do not include any additional questions, extraneous text, or Q&A pairs.
-Provide a single, clear, and direct answer. Do not add notes following the question as well.
-
-Context:
-{context}
-
-Question: {question}
-
-Answer:"""
-
-custom_prompt = PromptTemplate(
-    input_variables=["context", "Hi how are you?"],
-    template=prompt_template,
-)
 
 # Patch the LlamaCpp class to avoid the destructor error.
 from langchain_community.llms import LlamaCpp as BaseLlamaCpp
@@ -150,18 +133,12 @@ from langchain.chains import RetrievalQA
 llm = SafeLlamaCpp(
     model_path=model_path,
     n_ctx=2048,
-    temperature=0.7,
-    max_tokens=512,
+    temperature=0.1,
+    max_tokens=256,
     verbose=False
 )
 
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",  # "stuff" works well for short answers.
-    retriever=retriever,
-    return_source_documents=True,
-    chain_type_kwargs={"prompt": custom_prompt}
-)
+
 
 # ---------------------------------------------------------------------
 # ADD THIS HELPER FUNCTION AT THE END (MINIMAL CHANGE)
@@ -171,6 +148,33 @@ def get_llm_response(query: str) -> str:
     Takes a user query string and returns the LLM's best answer 
     using the already-initialized qa_chain.
     """
+    from langchain.prompts import PromptTemplate
+    prompt_template = """
+    Use ONLY the context provided below to answer the question. I cannot stress enough
+    that I DO NOT want you to add anything other than a succinct answer to the question asked.
+    Do not include any additional questions, extraneous text, or Q&A pairs.
+    Provide a single, clear, and direct answer.
+
+    Context:
+    {context}
+
+    Question: {question}
+
+    Answer:"""
+
+    custom_prompt = PromptTemplate(
+        input_variables=["context", query],
+        template=prompt_template,
+    )
+
+
+    qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",  # "stuff" works well for short answers.
+    retriever=retriever,
+    return_source_documents=True,
+    chain_type_kwargs={"prompt": custom_prompt}
+    )
     try:
         result = qa_chain.invoke({"query": query})
         
