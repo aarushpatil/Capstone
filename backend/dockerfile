@@ -1,0 +1,34 @@
+# Use a base image with Python and necessary libraries
+FROM python:3.11-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the script and manuals into the container
+COPY ./LLM/LLM.py ./LLM/
+COPY ../INTEGRATION_Manual_1.pdf ../INTEGRATION_Manual_2.pdf ./
+COPY ./main.py ./
+
+
+# Download the model within the Docker build process.
+# RUN python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF', filename='tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf', cache_dir='.')"
+
+#get CPP tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    vim
+
+# Copy the requirements file (if you have one) and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional needed libraries (if they are not in requirements.txt)
+# RUN pip install --no-cache-dir termcolor langchain huggingface_hub langchain_community langchain_huggingface chromadb pypdf python-docx llama-cpp-python dotenv
+
+#starts the server when the container starts
+CMD ["python", "main.py"]
+
+# Run the script when the container starts. (This will run the entire script. If you only want the function to be available, you will have to make changes to the script and maybe use an API)
+# CMD ["python", "LLM.py"]

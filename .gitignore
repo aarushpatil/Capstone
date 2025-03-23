@@ -1,2 +1,4 @@
 models--*/
 chroma_db/
+.locks
+models--TheBloke--TinyLlama-1.1B-Chat-v1.0-GGUF
