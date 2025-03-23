@@ -13,6 +13,7 @@ model_path = hf_hub_download(
     cache_dir="."
 )
 
+
 # Document loaders and text splitting
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -67,7 +68,7 @@ else:
 
 
 # Create a retriever from the vector store.
-retriever = db.as_retriever(search_kwargs={"k": 7}) #higher this number is the more info chroma will retrieve
+retriever = db.as_retriever(search_kwargs={"k": 3}) #higher this number is the more info chroma will retrieve
 
 # Define a custom prompt template to constrain the output.
 
@@ -88,28 +89,29 @@ from langchain.chains import RetrievalQA
 
 llm = SafeLlamaCpp(
     model_path=model_path,
-    n_ctx=2048,
+    n_ctx=10000,
     temperature=0.1,
-    max_tokens=512,
+    max_tokens=256,
     verbose=False
 )
 
 
-
-# ---------------------------------------------------------------------
-# ADD THIS HELPER FUNCTION AT THE END (MINIMAL CHANGE)
-# ---------------------------------------------------------------------
-def get_llm_response(query: str) -> str:
+#**********This function doesnt use previous context yet. Need to make the prompt nice somehow*
+#response quality went down by using context somehow
+def get_llm_response(query: str, context = "") -> str:
     """
     Takes a user query string and returns the LLM's best answer 
     using the already-initialized qa_chain.
     """
     from langchain.prompts import PromptTemplate
     prompt_template = """
-    Use ONLY the context provided below to answer the question. I cannot stress enough
-    that I DO NOT want you to add anything other than a succinct answer to the question asked.
-    Do not include any additional questions, extraneous text, or Q&A pairs.
-    Provide a single, clear, and direct answer.
+    You are to act like a traffic simulation assistant. 
+    You will be given a question, previous chat history with the user, and information from a traffic simulation manual.
+    You need to analyze this information from the manual and answer the question asked.
+
+    If the information provided isn't enough to answer the question asked then respond with "I don't know"
+
+    Answer consicely. 
 
     Context:
     {context}
@@ -119,7 +121,7 @@ def get_llm_response(query: str) -> str:
     Answer:"""
 
     custom_prompt = PromptTemplate(
-        input_variables=["context", query],
+        input_variables=[context, query],
         template=prompt_template,
     )
 
