@@ -13,3 +13,4 @@ authlib
 python-dotenv
 pymupdf
 langchain-chroma
+pymongo
