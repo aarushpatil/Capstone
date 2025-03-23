@@ -8,6 +8,7 @@ from authlib.integrations.flask_client import OAuth
 
 # Import the helper from llm.py to generate responses from the LLM.
 from LLM.LLM import get_llm_response
+from CollectionManager import *
 
 # ------------------------------------------
 # Flask App Setup
@@ -56,7 +57,12 @@ def authorize():
         resp = google.get(userinfo_endpoint)
         user_info = resp.json()
         session["user"] = user_info
-        print("Logged in user:", user_info, flush=True)
+        print("Logged in user:", user_info["sub"], flush=True)
+
+
+        #add to db
+        makeUser(user_info["sub"])
+
         return redirect("http://localhost:3000")  # Redirect back to your React app
     except Exception as e:
         print("Error during authorization:", e, flush=True)
@@ -120,6 +126,105 @@ def chatNoAuth():
 @app.route("/api/test", methods=["GET"])
 def test():
     return jsonify({"status": "success", "message": "Backend is working!"})
+
+
+
+#Get collections for user
+#Add Collection for user
+#delete collection for user
+
+#ChatHistory for Collection
+#Add to chatHistory for collection
+
+@app.route("/api/collections", methods=["POST"])
+def create_collection():
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+
+    user_id = session["user"]["sub"]
+    data = request.get_json()
+    collection_name = data.get("name", "New Collection")
+    collection_id = add_collection(user_id, collection_name)
+
+    return jsonify({"status": "success", "collectionId": collection_id})
+
+@app.route("/api/collections", methods=["GET"])
+def fetch_collections():
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+
+    user_id = session["user"]["sub"]
+    collections = get_collections(user_id)
+    
+    return jsonify({"status": "success", "collections": collections})
+
+@app.route("/api/collections/<collection_id>", methods=["DELETE"])
+def remove_collection(collection_id):
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+
+    user_id = session["user"]["sub"]
+    delete_collection(user_id, collection_id)
+
+    return jsonify({"status": "success", "message": "Collection deleted"})
+
+
+@app.route("/api/collections/<collection_id>/history", methods=["GET"])
+def fetch_chat_history(collection_id):
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+
+    user_id = session["user"]["sub"]
+    history = get_chat_history(user_id, collection_id)
+    
+    return jsonify({"status": "success", "chatHistory": history})
+
+@app.route("/api/collections/<collection_id>/chat", methods=["POST"])
+def chat_in_collection(collection_id):
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+
+    user_id = session["user"]["sub"]
+    data = request.get_json()
+    user_message = data.get("message", "").strip()
+
+    # Get response from the LLM
+    llm_response = get_llm_response(user_message)
+
+    # Save user message
+    add_message(user_id, collection_id, "user", user_message)
+    # Save assistant response
+    add_message(user_id, collection_id, "assistant", llm_response)
+
+    return jsonify({"response": llm_response, "status": "success"})
+
+
+@app.route("/api/rename_collection", methods=["POST"])
+def rename_collection():
+    if "user" not in session:
+        return jsonify({"status": "error", "message": "Not authorized"}), 401
+    
+    data = request.get_json()
+    user_id = session["user"]["sub"]
+    collection_id = data.get("collectionId")
+    new_name = data.get("newName", "").strip()
+
+    if not collection_id or not new_name:
+        return jsonify({"status": "error", "message": "Invalid data"}), 400
+
+    user = users_collection.find_one({"_id": user_id})
+    if not user:
+        return jsonify({"status": "error", "message": "User not found"}), 404
+
+    # Update the collection name
+    users_collection.update_one(
+        {"_id": user_id, "collections.collectionId": collection_id},
+        {"$set": {"collections.$.name": new_name}}
+    )
+
+    return jsonify({"status": "success", "message": "Collection renamed"})
+
+
 
 # ------------------------------------------
 # Run App
