@@ -82,6 +82,7 @@ def get_chat_history(user_id, collection_id):
         return []
     for collection in user["collections"]:
         if collection["collectionId"] == collection_id:
+            print("the chat history retrieved is: " + str(collection["chatHistory"]))
             return collection["chatHistory"]
     return []
 

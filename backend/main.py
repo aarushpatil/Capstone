@@ -188,8 +188,13 @@ def chat_in_collection(collection_id):
     data = request.get_json()
     user_message = data.get("message", "").strip()
 
+
+
+    user_id = session["user"]["sub"]
+    history = get_chat_history(user_id, collection_id)
+
     # Get response from the LLM
-    llm_response = get_llm_response(user_message)
+    llm_response = get_llm_response(user_message, history)
 
     # Save user message
     add_message(user_id, collection_id, "user", user_message)
