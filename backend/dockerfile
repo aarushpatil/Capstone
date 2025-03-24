@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy the requirements file (if you have one) and install dependencies
 COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Install additional needed libraries (if they are not in requirements.txt)
 # RUN pip install --no-cache-dir termcolor langchain huggingface_hub langchain_community langchain_huggingface chromadb pypdf python-docx llama-cpp-python dotenv
