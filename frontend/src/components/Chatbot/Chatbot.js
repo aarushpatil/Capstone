@@ -172,8 +172,15 @@ const renameCollection = async (collectionId, newNamer) => {
       {/* Chat Section */}
       <main className="flex flex-col flex-1">
         {/* Header */}
-        <header className="px-6 py-4 bg-white shadow">
-          <h1 className="text-xl font-semibold text-gray-800">Transportation Chatbot</h1>
+        <header className="px-6 py-4 bg-white shadow flex justify-between items-center">
+          <h1 className="text-xl font-semibold text-gray-800">
+            Transportation Chatbot
+          </h1>
+          {user && (
+            <span className="text-sm text-gray-600">
+              Welcome, <span className="font-large">{user.name}</span>
+            </span>
+          )}
         </header>
 
         {/* Chat Messages */}
