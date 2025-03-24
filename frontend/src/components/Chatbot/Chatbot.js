@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FiLogOut, FiPlus, FiFolder } from "react-icons/fi";
 
@@ -6,7 +6,24 @@ const Chatbot = () => {
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [collections] = useState(["Simulation Basics", "Traffic Lights", "Intersection Rules"]); // mock collection list
+  const [user, setUser] = useState(null); // 👤 To store logged-in user info
+  const [collections] = useState(["Simulation Basics", "Traffic Lights", "Intersection Rules"]);
+
+  // 👤 Fetch user info on component mount
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await axios.get("http://localhost:5050/api/user", {
+          withCredentials: true,
+        });
+        setUser(res.data.user);
+      } catch (err) {
+        console.error("Failed to fetch user", err);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,10 +93,15 @@ const Chatbot = () => {
       {/* Chat Section */}
       <main className="flex flex-col flex-1">
         {/* Header */}
-        <header className="px-6 py-4 bg-white shadow">
+        <header className="px-6 py-4 bg-white shadow flex justify-between items-center">
           <h1 className="text-xl font-semibold text-gray-800">
             Transportation Chatbot
           </h1>
+          {user && (
+            <span className="text-sm text-gray-600">
+              Welcome, <span className="font-large">{user.name}</span>
+            </span>
+          )}
         </header>
 
         {/* Chat Messages */}
