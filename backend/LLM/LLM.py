@@ -1,9 +1,9 @@
-# llm.py
 import os
 from operator import itemgetter
 from typing import Any, Dict, List
 from termcolor import colored
 import sys
+from LLM.chapterSplitting import getManualChunks
 
 # Download the local model from Hugging Face Hub
 from huggingface_hub import hf_hub_download
@@ -19,66 +19,57 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Dynamically determine the current script directory and set the manuals directory.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-manuals_dir = os.path.join(BASE_DIR, "../")  # Adjust if needed
+manuals_dir = os.path.join(BASE_DIR, "./")  # Adjust if needed
 
-# List of document file names.
-file_names = ["INTEGRATION_Manual_1.pdf", "INTEGRATION_Manual_2.pdf"]
 
-# Create full file paths.
-file_paths = [os.path.join(manuals_dir, f) for f in file_names]
+def getTextSplitted():
+    manual_chapters = getManualChunks()
 
-# Load the documents.
-text_to_split = []
-for file in file_paths:
-    if file.endswith('.pdf'):
-        print("Loading:", file)
-        loader = PyPDFLoader(file)
-        pdf_file = loader.load()
-        text_to_split.append(pdf_file)
-    elif file.endswith('.doc') or file.endswith('.docx'):
-        loader = Docx2txtLoader(file)
-        doc_file = loader.load()
-        text_to_split.append(doc_file)
+    # Convert the chapter strings into LangChain Document objects
+    from langchain.docstore.document import Document
 
-# Split the loaded documents into chunks.
-text_splitted = []
-splitter = RecursiveCharacterTextSplitter(
-    separators=['\n\n', '\n'],
-    chunk_size=500,
-    chunk_overlap=100
-)
-for t in text_to_split:
-    text_chunks = splitter.split_documents(t)
-    text_splitted += text_chunks
+    text_splitted = [Document(page_content=chapter) for chapter in manual_chapters]
 
-# Create embeddings and build the vector store.
+    # If you still want to chunk the chapters further, you can use the RecursiveCharacterTextSplitter
+    # on the chapter content.
+    splitter = RecursiveCharacterTextSplitter(
+        separators=['\n\n', '\n'],
+        chunk_size=500,
+        chunk_overlap=100
+    )
+
+    final_chunks = []
+    for doc in text_splitted:
+        chunks = splitter.split_documents([doc])
+        final_chunks.extend(chunks)
+
+    text_splitted = final_chunks
+    return text_splitted
+
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
 embeddings = HuggingFaceEmbeddings()  # Uses all-mpnet-base-v2 by default.
-db = Chroma.from_documents(text_splitted, embeddings)
+
+
+persist_directory = "./chroma_db"  # Specify a directory to persist the database.
+if os.path.exists(persist_directory):
+    db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    print("Loaded existing Chroma database.")
+else:
+    text_splitted = getTextSplitted()
+    db = Chroma.from_documents(text_splitted, embeddings, persist_directory=persist_directory)
+    print("Created new Chroma database.")
+    db.persist() #persist to disk
+
+
+
 
 # Create a retriever from the vector store.
-retriever = db.as_retriever(search_kwargs={"k": 1})
+retriever = db.as_retriever(search_kwargs={"k": 7}) #higher this number is the more info chroma will retrieve
 
 # Define a custom prompt template to constrain the output.
-from langchain.prompts import PromptTemplate
-prompt_template = """
-You are a concise and factual assistant. Use ONLY the context provided below to answer the question.
-Do not include any additional questions, extraneous text, or Q&A pairs.
-Provide a single, clear, and direct answer. Do not add notes following the question as well.
-
-Context:
-{context}
-
-Question: {question}
-
-Answer:"""
-
-custom_prompt = PromptTemplate(
-    input_variables=["context", "question"],
-    template=prompt_template,
-)
 
 # Patch the LlamaCpp class to avoid the destructor error.
 from langchain_community.llms import LlamaCpp as BaseLlamaCpp
@@ -98,18 +89,12 @@ from langchain.chains import RetrievalQA
 llm = SafeLlamaCpp(
     model_path=model_path,
     n_ctx=2048,
-    temperature=0.7,
+    temperature=0.1,
     max_tokens=512,
-    verbose=True
+    verbose=False
 )
 
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",  # "stuff" works well for short answers.
-    retriever=retriever,
-    return_source_documents=True,
-    chain_type_kwargs={"prompt": custom_prompt}
-)
+
 
 # ---------------------------------------------------------------------
 # ADD THIS HELPER FUNCTION AT THE END (MINIMAL CHANGE)
@@ -119,8 +104,45 @@ def get_llm_response(query: str) -> str:
     Takes a user query string and returns the LLM's best answer 
     using the already-initialized qa_chain.
     """
+    from langchain.prompts import PromptTemplate
+    prompt_template = """
+    Use ONLY the context provided below to answer the question. I cannot stress enough
+    that I DO NOT want you to add anything other than a succinct answer to the question asked.
+    Do not include any additional questions, extraneous text, or Q&A pairs.
+    Provide a single, clear, and direct answer.
+
+    Context:
+    {context}
+
+    Question: {question}
+
+    Answer:"""
+
+    custom_prompt = PromptTemplate(
+        input_variables=["context", query],
+        template=prompt_template,
+    )
+
+
+    qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",  # "stuff" works well for short answers.
+    retriever=retriever,
+    return_source_documents=True,
+    chain_type_kwargs={"prompt": custom_prompt}
+    )
     try:
         result = qa_chain.invoke({"query": query})
+        
+        print("Chroma DB Retrieved Documents: --------")
+        for doc in result["source_documents"]:
+            print("Page Content:")
+            print(doc.page_content)
+            print("Metadata:")
+            print(doc.metadata)
+            print("-" * 20)
+        print("Chroma DB Retrieved Documents End: --------")
+
         return result["result"]
     except Exception as e:
         print("Error in get_llm_response:", str(e))

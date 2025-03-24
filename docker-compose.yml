@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  backend:
+    build: ./backend/  # Build the image from the Dockerfile in the current directory.
+    ports:
+      - "5051:5051"  # Expose port 5051.
+    volumes:
+      - ./:/app  # Mount the current directory into /app.
+    command: /bin/bash #run bash instead of the default command.

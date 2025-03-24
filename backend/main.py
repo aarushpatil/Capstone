@@ -1,4 +1,4 @@
-import os
+import os, sys
 from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env
 
@@ -94,6 +94,28 @@ def get_user():
     if user:
         return jsonify({"status": "success", "user": user})
     return jsonify({"status": "error", "message": "User not logged in"}), 401
+
+
+#non auth protected routes:
+
+@app.route("/chatNoAuth", methods=["POST"])
+def chatNoAuth():
+    try:
+        data = request.get_json()
+        print("Received request:", data, flush=True)
+        user_message = data.get("message", "").strip()
+        print("**************")
+        print(user_message)
+        print("**************")
+
+        # Call the helper from llm.py to get the response from the LLM.
+        llm_response = get_llm_response(user_message)
+
+        return jsonify({"response": llm_response, "status": "success"})
+    except Exception as e:
+        print("Error in /api/chat:", str(e), flush=True)
+        return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
+
 
 @app.route("/api/test", methods=["GET"])
 def test():
