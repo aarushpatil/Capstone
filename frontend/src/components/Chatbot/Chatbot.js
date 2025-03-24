@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FiLogOut, FiPlus, FiFolder } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiFolder, FiTrash } from "react-icons/fi";
 
 const Chatbot = ({ user }) => {
   const [message, setMessage] = useState("");
@@ -10,7 +10,6 @@ const Chatbot = ({ user }) => {
   const [activeCollection, setActiveCollection] = useState(null);
   const [editingCollection, setEditingCollection] = useState(null);
   const [newCollectionName, setNewCollectionName] = useState("");
-
 
   useEffect(() => {
     fetchCollections();
@@ -35,6 +34,19 @@ const Chatbot = ({ user }) => {
       }
     } catch (error) {
       console.error("Error creating collection", error);
+    }
+  };
+
+  const deleteCollection = async (collectionId) => {
+    try {
+      await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
+      setCollections(collections.filter(collection => collection.collectionId !== collectionId));
+      if (activeCollection === collectionId) {
+        setActiveCollection(null);
+        setConversation([]);
+      }
+    } catch (error) {
+      console.error("Error deleting collection", error);
     }
   };
 
@@ -86,13 +98,18 @@ const Chatbot = ({ user }) => {
             {collections.map((collection) => (
               <li
                 key={collection.collectionId}
-                className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer transition ${
+                className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer transition ${
                   activeCollection === collection.collectionId ? "bg-gray-200" : ""
                 }`}
-                onClick={() => fetchChatHistory(collection.collectionId)}
               >
-                <FiFolder className="text-blue-500" />
-                {truncateName(collection.name)}
+                <div className="flex items-center gap-2" onClick={() => fetchChatHistory(collection.collectionId)}>
+                  <FiFolder className="text-blue-500" />
+                  {truncateName(collection.name)}
+                </div>
+                <FiTrash
+                  className="text-red-500 hover:text-red-700 cursor-pointer"
+                  onClick={() => deleteCollection(collection.collectionId)}
+                />
               </li>
             ))}
             <li
