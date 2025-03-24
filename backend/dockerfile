@@ -1,5 +1,5 @@
 # Use a base image with Python and necessary libraries
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11.11-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -29,6 +29,3 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 #starts the server when the container starts
 CMD ["python", "main.py"]
-
-# Run the script when the container starts. (This will run the entire script. If you only want the function to be available, you will have to make changes to the script and maybe use an API)
-# CMD ["python", "LLM.py"]
