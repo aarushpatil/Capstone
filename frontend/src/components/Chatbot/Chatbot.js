@@ -78,25 +78,49 @@ const Chatbot = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim() || isLoading || !activeCollection) return;
+  if (!message.trim() || isLoading || !activeCollection) return;
 
-    setIsLoading(true);
-    setConversation((prev) => [...prev, { role: "user", content: message }]);
+  const isFirstMessage = conversation.length === 0; // Check if it's the first message
+  // If it's the first message, rename the collection
+  if (isFirstMessage) {
+    await renameCollection(activeCollection, message);
+  }
 
-    try {
-      const response = await axios.post(
-        `http://localhost:5050/api/collections/${activeCollection}/chat`,
-        { message },
-        { withCredentials: true }
-      );
-      setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
-    } catch (error) {
-      console.error("Error sending message", error);
-    } finally {
-      setMessage("");
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(true);
+  setConversation((prev) => [...prev, { role: "user", content: message }]);
+
+  try {
+    const response = await axios.post(
+      `http://localhost:5050/api/collections/${activeCollection}/chat`,
+      { message },
+      { withCredentials: true }
+    );
+
+    setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
+
+    
+  } catch (error) {
+    console.error("Error sending message", error);
+  } finally {
+    setMessage("");
+    setIsLoading(false);
+  }
+};
+
+// Function to rename the collection
+const renameCollection = async (collectionId, newNamer) => {
+  try {
+    const newName = newNamer.length > 20 ? newNamer.substring(0, 20) + "..." : newNamer;
+    await axios.post(
+      "http://localhost:5050/api/rename_collection",
+      { collectionId, newName },
+      { withCredentials: true }
+    );
+    fetchCollections(); // Refresh collections to show the updated name
+  } catch (error) {
+    console.error("Error renaming collection", error);
+  }
+};
 
   return (
     <div className="flex h-screen bg-gray-100">

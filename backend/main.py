@@ -5,6 +5,7 @@ load_dotenv()  # Load environment variables from .env
 from flask import Flask, redirect, url_for, session, request, jsonify
 from flask_cors import CORS
 from authlib.integrations.flask_client import OAuth
+# from werkzeug.exceptions import ClientDisconnected
 
 # Import the helper from llm.py to generate responses from the LLM.
 from LLM.LLM import get_llm_response
@@ -21,6 +22,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+
+@app.errorhandler(ConnectionResetError)
+def handle_client_disconnect(error):
+    print("Client disconnected abruptly.", flush=True)
+    return "", 499  # Custom status for aborted requests
 
 # ------------------------------------------
 # Google OAuth Setup
@@ -181,25 +187,27 @@ def fetch_chat_history(collection_id):
 
 @app.route("/api/collections/<collection_id>/chat", methods=["POST"])
 def chat_in_collection(collection_id):
-    if "user" not in session:
-        return jsonify({"status": "error", "message": "Not authorized"}), 401
+    try:
+        if "user" not in session:
+            return jsonify({"status": "error", "message": "Not authorized"}), 401
+        user_id = session["user"]["sub"]
+        data = request.get_json()
+        user_message = data.get("message", "").strip()
 
-    user_id = session["user"]["sub"]
-    data = request.get_json()
-    user_message = data.get("message", "").strip()
 
 
+        user_id = session["user"]["sub"]
+        history = get_chat_history(user_id, collection_id)
 
-    user_id = session["user"]["sub"]
-    history = get_chat_history(user_id, collection_id)
+        # Get response from the LLM
+        llm_response = get_llm_response(user_message, history)
 
-    # Get response from the LLM
-    llm_response = get_llm_response(user_message, history)
-
-    # Save user message
-    add_message(user_id, collection_id, "user", user_message)
-    # Save assistant response
-    add_message(user_id, collection_id, "assistant", llm_response)
+        # Save user message
+        add_message(user_id, collection_id, "user", user_message)
+        # Save assistant response
+        add_message(user_id, collection_id, "assistant", llm_response)
+    except Exception as e:
+        return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
 
     return jsonify({"response": llm_response, "status": "success"})
 
