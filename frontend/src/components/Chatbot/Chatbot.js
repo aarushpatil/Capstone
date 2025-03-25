@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FiLogOut, FiPlus, FiFolder } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiFolder, FiTrash } from "react-icons/fi";
 
 const Chatbot = ({ user }) => {
   const [message, setMessage] = useState("");
@@ -10,7 +10,6 @@ const Chatbot = ({ user }) => {
   const [activeCollection, setActiveCollection] = useState(null);
   const [editingCollection, setEditingCollection] = useState(null);
   const [newCollectionName, setNewCollectionName] = useState("");
-
 
   useEffect(() => {
     fetchCollections();
@@ -28,8 +27,13 @@ const Chatbot = ({ user }) => {
   };
 
   const createCollection = async () => {
+    if (isLoading) return;
     try {
-      const response = await axios.post("http://localhost:5050/api/collections", { name: "New Collection" }, { withCredentials: true });
+      const response = await axios.post(
+        "http://localhost:5050/api/collections",
+        { name: "New Collection" },
+        { withCredentials: true }
+      );
       if (response.data.status === "success") {
         fetchCollections();
       }
@@ -38,10 +42,28 @@ const Chatbot = ({ user }) => {
     }
   };
 
+  const deleteCollection = async (collectionId) => {
+    if (isLoading) return;
+    try {
+      await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
+      setCollections(collections.filter(collection => collection.collectionId !== collectionId));
+      if (activeCollection === collectionId) {
+        setActiveCollection(null);
+        setConversation([]);
+      }
+    } catch (error) {
+      console.error("Error deleting collection", error);
+    }
+  };
+
   const fetchChatHistory = async (collectionId) => {
+    if (isLoading) return;
     setActiveCollection(collectionId);
     try {
-      const response = await axios.get(`http://localhost:5050/api/collections/${collectionId}/history`, { withCredentials: true });
+      const response = await axios.get(
+        `http://localhost:5050/api/collections/${collectionId}/history`,
+        { withCredentials: true }
+      );
       if (response.data.status === "success") {
         setConversation(response.data.chatHistory);
       }
@@ -56,25 +78,49 @@ const Chatbot = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim() || isLoading || !activeCollection) return;
+  if (!message.trim() || isLoading || !activeCollection) return;
 
-    setIsLoading(true);
-    setConversation((prev) => [...prev, { role: "user", content: message }]);
+  const isFirstMessage = conversation.length === 0; // Check if it's the first message
+  // If it's the first message, rename the collection
+  if (isFirstMessage) {
+    await renameCollection(activeCollection, message);
+  }
 
-    try {
-      const response = await axios.post(
-        `http://localhost:5050/api/collections/${activeCollection}/chat`,
-        { message },
-        { withCredentials: true }
-      );
-      setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
-    } catch (error) {
-      console.error("Error sending message", error);
-    } finally {
-      setMessage("");
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(true);
+  setConversation((prev) => [...prev, { role: "user", content: message }]);
+
+  try {
+    const response = await axios.post(
+      `http://localhost:5050/api/collections/${activeCollection}/chat`,
+      { message },
+      { withCredentials: true }
+    );
+
+    setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
+
+    
+  } catch (error) {
+    console.error("Error sending message", error);
+  } finally {
+    setMessage("");
+    setIsLoading(false);
+  }
+};
+
+// Function to rename the collection
+const renameCollection = async (collectionId, newNamer) => {
+  try {
+    const newName = newNamer.length > 20 ? newNamer.substring(0, 20) + "..." : newNamer;
+    await axios.post(
+      "http://localhost:5050/api/rename_collection",
+      { collectionId, newName },
+      { withCredentials: true }
+    );
+    fetchCollections(); // Refresh collections to show the updated name
+  } catch (error) {
+    console.error("Error renaming collection", error);
+  }
+};
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -86,18 +132,28 @@ const Chatbot = ({ user }) => {
             {collections.map((collection) => (
               <li
                 key={collection.collectionId}
-                className={`flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer transition ${
+                className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition ${
                   activeCollection === collection.collectionId ? "bg-gray-200" : ""
-                }`}
-                onClick={() => fetchChatHistory(collection.collectionId)}
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                onClick={!isLoading ? () => fetchChatHistory(collection.collectionId) : undefined}
               >
-                <FiFolder className="text-blue-500" />
-                {truncateName(collection.name)}
+                <div className="flex items-center gap-2">
+                  <FiFolder className="text-blue-500" />
+                  {truncateName(collection.name)}
+                </div>
+                <FiTrash
+                  className={`text-red-500 hover:text-red-700 ${
+                    isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                  onClick={!isLoading ? () => deleteCollection(collection.collectionId) : undefined}
+                />
               </li>
             ))}
             <li
-              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded cursor-pointer transition"
-              onClick={createCollection}
+              className={`flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded transition ${
+                isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+              onClick={!isLoading ? createCollection : undefined}
             >
               <FiPlus />
               New Collection

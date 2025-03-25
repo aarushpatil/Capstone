@@ -1,3 +1,4 @@
+llama-cpp-python
 termcolor
 langchain
 huggingface_hub
@@ -6,7 +7,6 @@ langchain_huggingface
 chromadb
 pypdf
 python-docx
-llama-cpp-python
 Flask
 flask-cors
 authlib
