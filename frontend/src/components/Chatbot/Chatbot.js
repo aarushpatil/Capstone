@@ -27,8 +27,13 @@ const Chatbot = ({ user }) => {
   };
 
   const createCollection = async () => {
+    if (isLoading) return;
     try {
-      const response = await axios.post("http://localhost:5050/api/collections", { name: "New Collection" }, { withCredentials: true });
+      const response = await axios.post(
+        "http://localhost:5050/api/collections",
+        { name: "New Collection" },
+        { withCredentials: true }
+      );
       if (response.data.status === "success") {
         fetchCollections();
       }
@@ -38,6 +43,7 @@ const Chatbot = ({ user }) => {
   };
 
   const deleteCollection = async (collectionId) => {
+    if (isLoading) return;
     try {
       await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
       setCollections(collections.filter(collection => collection.collectionId !== collectionId));
@@ -51,9 +57,13 @@ const Chatbot = ({ user }) => {
   };
 
   const fetchChatHistory = async (collectionId) => {
+    if (isLoading) return;
     setActiveCollection(collectionId);
     try {
-      const response = await axios.get(`http://localhost:5050/api/collections/${collectionId}/history`, { withCredentials: true });
+      const response = await axios.get(
+        `http://localhost:5050/api/collections/${collectionId}/history`,
+        { withCredentials: true }
+      );
       if (response.data.status === "success") {
         setConversation(response.data.chatHistory);
       }
@@ -98,23 +108,28 @@ const Chatbot = ({ user }) => {
             {collections.map((collection) => (
               <li
                 key={collection.collectionId}
-                className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer transition ${
+                className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition ${
                   activeCollection === collection.collectionId ? "bg-gray-200" : ""
-                }`}
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                onClick={!isLoading ? () => fetchChatHistory(collection.collectionId) : undefined}
               >
-                <div className="flex items-center gap-2" onClick={() => fetchChatHistory(collection.collectionId)}>
+                <div className="flex items-center gap-2">
                   <FiFolder className="text-blue-500" />
                   {truncateName(collection.name)}
                 </div>
                 <FiTrash
-                  className="text-red-500 hover:text-red-700 cursor-pointer"
-                  onClick={() => deleteCollection(collection.collectionId)}
+                  className={`text-red-500 hover:text-red-700 ${
+                    isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                  onClick={!isLoading ? () => deleteCollection(collection.collectionId) : undefined}
                 />
               </li>
             ))}
             <li
-              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded cursor-pointer transition"
-              onClick={createCollection}
+              className={`flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded transition ${
+                isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+              onClick={!isLoading ? createCollection : undefined}
             >
               <FiPlus />
               New Collection
