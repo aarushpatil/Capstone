@@ -14,6 +14,9 @@ model_path = hf_hub_download(
 )
 
 
+# model_path = hf_hub_download(repo_id="TheBloke/CapybaraHermes-2.5-Mistral-7B-GGUF", filename="capybarahermes-2.5-mistral-7b.Q4_K_M.gguf", cache_dir=".")
+
+
 # Document loaders and text splitting
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -24,28 +27,27 @@ manuals_dir = os.path.join(BASE_DIR, "./")  # Adjust if needed
 
 
 def getTextSplitted():
-    manual_chapters = getManualChunks()
-
-    # Convert the chapter strings into LangChain Document objects
     from langchain.docstore.document import Document
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-    text_splitted = [Document(page_content=chapter) for chapter in manual_chapters]
-
-    # If you still want to chunk the chapters further, you can use the RecursiveCharacterTextSplitter
-    # on the chapter content.
+    manual_chapters = getManualChunks()
     splitter = RecursiveCharacterTextSplitter(
         separators=['\n\n', '\n'],
-        chunk_size=500,
-        chunk_overlap=100
+        chunk_size=50000,
+        chunk_overlap=1000
     )
 
     final_chunks = []
-    for doc in text_splitted:
-        chunks = splitter.split_documents([doc])
-        final_chunks.extend(chunks)
+    for chapter in manual_chapters:
+        doc = Document(page_content=chapter)
+        if len(chapter) > 50000:
+            chunks = splitter.split_documents([doc])
+            final_chunks.extend(chunks)
+        else:
+            final_chunks.append(doc)
 
-    text_splitted = final_chunks
-    return text_splitted
+    return final_chunks
+
 
 
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -68,7 +70,7 @@ else:
 
 
 # Create a retriever from the vector store.
-retriever = db.as_retriever(search_kwargs={"k": 3}) #higher this number is the more info chroma will retrieve
+retriever = db.as_retriever(search_kwargs={"k": 1}) #higher this number is the more info chroma will retrieve
 
 # Define a custom prompt template to constrain the output.
 
@@ -87,13 +89,25 @@ class SafeLlamaCpp(BaseLlamaCpp):
 # Integrate the local LLM into a RetrievalQA chain using the patched class.
 from langchain.chains import RetrievalQA
 
+# llm = SafeLlamaCpp(
+#     model_path=model_path,
+#     n_ctx=32000,
+#     temperature=0.1,
+#     max_tokens=256,
+#     verbose=False
+# )
+
 llm = SafeLlamaCpp(
     model_path=model_path,
-    n_ctx=10000,
-    temperature=0.1,
-    max_tokens=256,
-    verbose=False
+    n_ctx=32000,
+    n_threads=6,
+    use_mlock=True,
+    use_mmap=True,
+    verbose=False,
+    max_tokens=512,  # ← Explicitly set this to avoid early cuts
+    temperature=0.1
 )
+
 
 
 #**********This function doesnt use previous context yet. Need to make the prompt nice somehow*
@@ -121,7 +135,7 @@ def get_llm_response(query: str, context = "") -> str:
     Answer:"""
 
     custom_prompt = PromptTemplate(
-        input_variables=[context, query],
+        input_variables=["context", "query"],
         template=prompt_template,
     )
 
@@ -136,16 +150,28 @@ def get_llm_response(query: str, context = "") -> str:
     try:
         result = qa_chain.invoke({"query": query})
         
-        print("Chroma DB Retrieved Documents: --------")
-        for doc in result["source_documents"]:
-            print("Page Content:")
-            print(doc.page_content)
-            print("Metadata:")
-            print(doc.metadata)
-            print("-" * 20)
-        print("Chroma DB Retrieved Documents End: --------")
+        # print("Chroma DB Retrieved Documents: --------")
+        # for doc in result["source_documents"]:
+        #     print("Page Content:")
+        #     print(doc.page_content)
+        #     print("Metadata:")
+        #     print(doc.metadata)
+        #     print("-" * 20)
+        # print("Chroma DB Retrieved Documents End: --------")
 
-        return result["result"]
+        output = "=" * 55
+        output += " Chroma DB Retrieved Documents: \n"
+        for doc in result["source_documents"]:
+            output += "Page Content:\n"
+            output += f"{doc.page_content}\n"
+            output += "Metadata:\n"
+            output += f"{doc.metadata}\n"
+            output += "-" * 20 + "\n"
+        # output += "Chroma DB Retrieved Documents End "
+        output += ("=" * 55)
+
+        retVal = result["result"] + "\n\n\n\n\n" + output
+        return retVal
     except Exception as e:
         print("Error in get_llm_response:", str(e))
         return f"Error: {str(e)}"

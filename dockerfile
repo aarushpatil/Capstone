@@ -1,7 +1,4 @@
 # Use an ARM-compatible Python base image (3.11.11-slim for arm64)
-# FROM arm64v8/python:3.11.11-slim
-
-# for windows use this:
 FROM python:3.11.11-slim
 
 # Set the working directory in the container
