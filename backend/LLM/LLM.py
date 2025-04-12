@@ -110,7 +110,6 @@ llm = SafeLlamaCpp(
 
 
 
-#**********This function doesnt use previous context yet. Need to make the prompt nice somehow*
 #response quality went down by using context somehow
 def get_llm_response(query: str, context = "") -> str:
     """
