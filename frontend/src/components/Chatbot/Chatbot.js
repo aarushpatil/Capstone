@@ -1,81 +1,160 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FiLogOut, FiPlus, FiFolder } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiFolder, FiTrash } from "react-icons/fi";
 
-const Chatbot = () => {
+const Chatbot = ({ user }) => {
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState(null); // 👤 To store logged-in user info
-  const [collections] = useState(["Simulation Basics", "Traffic Lights", "Intersection Rules"]);
+  const [collections, setCollections] = useState([]);
+  const [activeCollection, setActiveCollection] = useState(null);
+  const [editingCollection, setEditingCollection] = useState(null);
+  const [newCollectionName, setNewCollectionName] = useState("");
 
-  // 👤 Fetch user info on component mount
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await axios.get("http://localhost:5050/api/user", {
-          withCredentials: true,
-        });
-        setUser(res.data.user);
-      } catch (err) {
-        console.error("Failed to fetch user", err);
-      }
-    };
-
-    fetchUser();
+    fetchCollections();
   }, []);
+
+  const fetchCollections = async () => {
+    try {
+      const response = await axios.get("http://localhost:5050/api/collections", { withCredentials: true });
+      if (response.data.status === "success") {
+        setCollections(response.data.collections);
+      }
+    } catch (error) {
+      console.error("Error fetching collections", error);
+    }
+  };
+
+  const createCollection = async () => {
+    if (isLoading) return;
+    try {
+      const response = await axios.post(
+        "http://localhost:5050/api/collections",
+        { name: "New Collection" },
+        { withCredentials: true }
+      );
+      if (response.data.status === "success") {
+        fetchCollections();
+      }
+    } catch (error) {
+      console.error("Error creating collection", error);
+    }
+  };
+
+  const deleteCollection = async (collectionId) => {
+    if (isLoading) return;
+    try {
+      await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
+      setCollections(collections.filter(collection => collection.collectionId !== collectionId));
+      if (activeCollection === collectionId) {
+        setActiveCollection(null);
+        setConversation([]);
+      }
+    } catch (error) {
+      console.error("Error deleting collection", error);
+    }
+  };
+
+  const fetchChatHistory = async (collectionId) => {
+    if (isLoading) return;
+    setActiveCollection(collectionId);
+    try {
+      const response = await axios.get(
+        `http://localhost:5050/api/collections/${collectionId}/history`,
+        { withCredentials: true }
+      );
+      if (response.data.status === "success") {
+        setConversation(response.data.chatHistory);
+      }
+    } catch (error) {
+      console.error("Error fetching chat history", error);
+    }
+  };
+
+  const truncateName = (name) => {
+    return name.length > 30 ? name.substring(0, 30) + "..." : name;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!message.trim() || isLoading) return;
+  if (!message.trim() || isLoading || !activeCollection) return;
 
-    setIsLoading(true);
-    setConversation((prev) => [...prev, { sender: "user", text: message }]);
+  const isFirstMessage = conversation.length === 0; // Check if it's the first message
+  // If it's the first message, rename the collection
+  if (isFirstMessage) {
+    await renameCollection(activeCollection, message);
+  }
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5050/api/chat",
-        { message },
-        { withCredentials: true }
-      );
-      setConversation((prev) => [
-        ...prev,
-        { sender: "bot", text: response.data.response },
-      ]);
-    } catch (error) {
-      console.error("Error details:", error);
-      setConversation((prev) => [
-        ...prev,
-        {
-          sender: "bot",
-          text: "Connection error. Please check if you are logged in and the backend is running.",
-        },
-      ]);
-    } finally {
-      setMessage("");
-      setIsLoading(false);
-    }
-  };
+  setIsLoading(true);
+  setConversation((prev) => [...prev, { role: "user", content: message }]);
+
+  try {
+    const response = await axios.post(
+      `http://localhost:5050/api/collections/${activeCollection}/chat`,
+      { message },
+      { withCredentials: true }
+    );
+
+    setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
+
+    
+  } catch (error) {
+    console.error("Error sending message", error);
+  } finally {
+    setMessage("");
+    setIsLoading(false);
+  }
+};
+
+// Function to rename the collection
+const renameCollection = async (collectionId, newNamer) => {
+  try {
+    const newName = newNamer.length > 20 ? newNamer.substring(0, 20) + "..." : newNamer;
+    await axios.post(
+      "http://localhost:5050/api/rename_collection",
+      { collectionId, newName },
+      { withCredentials: true }
+    );
+    fetchCollections(); // Refresh collections to show the updated name
+  } catch (error) {
+    console.error("Error renaming collection", error);
+  }
+};
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md p-4 flex flex-col">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            Collections
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Collections</h2>
           <ul className="space-y-2">
-            {collections.map((name, idx) => (
+            {collections.map((collection) => (
               <li
-                key={idx}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded cursor-pointer transition"
+                key={collection.collectionId}
+                className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition ${
+                  activeCollection === collection.collectionId ? "bg-gray-200" : ""
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                onClick={!isLoading ? () => fetchChatHistory(collection.collectionId) : undefined}
               >
-                <FiFolder className="text-blue-500" />
-                {name}
+                <div className="flex items-center gap-2">
+                  <FiFolder className="text-blue-500" />
+                  {truncateName(collection.name)}
+                </div>
+                <FiTrash
+                  className={`text-red-500 hover:text-red-700 ${
+                    isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                  onClick={!isLoading ? () => deleteCollection(collection.collectionId) : undefined}
+                />
               </li>
             ))}
-            <li className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded cursor-pointer transition">
+            <li
+              className={`flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded transition ${
+                isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+              }`}
+              onClick={!isLoading ? createCollection : undefined}
+            >
               <FiPlus />
               New Collection
             </li>
@@ -107,20 +186,15 @@ const Chatbot = () => {
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-gray-50">
           {conversation.map((msg, index) => (
-            <div
-              key={index}
-              className={`flex ${
-                msg.sender === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+            <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
                 className={`max-w-xl px-4 py-3 rounded-xl shadow ${
-                  msg.sender === "user"
+                  msg.role === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
                     : "bg-white text-gray-800 border rounded-bl-none"
                 }`}
               >
-                {msg.text}
+                {msg.content}
               </div>
             </div>
           ))}
@@ -134,21 +208,18 @@ const Chatbot = () => {
         </div>
 
         {/* Input */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex items-center gap-2 px-6 py-4 bg-white border-t shadow-inner"
-        >
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 px-6 py-4 bg-white border-t shadow-inner">
           <input
             type="text"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Ask me about traffic simulation..."
-            disabled={isLoading}
+            disabled={isLoading || !activeCollection}
             className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !activeCollection}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
           >
             {isLoading ? "Sending..." : "Send"}
