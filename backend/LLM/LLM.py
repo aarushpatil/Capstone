@@ -33,20 +33,29 @@ def getTextSplitted():
     manual_chapters = getManualChunks()
     splitter = RecursiveCharacterTextSplitter(
         separators=['\n\n', '\n'],
-        chunk_size=50000,
-        chunk_overlap=1000
+        chunk_size=500,
+        chunk_overlap=30
     )
 
     final_chunks = []
     for chapter in manual_chapters:
         doc = Document(page_content=chapter)
-        if len(chapter) > 50000:
-            chunks = splitter.split_documents([doc])
-            final_chunks.extend(chunks)
-        else:
-            final_chunks.append(doc)
+        chunks = splitter.split_documents([doc])
+        final_chunks.extend(chunks)
 
     return final_chunks
+
+
+    # final_chunks = []
+    # for chapter in manual_chapters:
+    #     doc = Document(page_content=chapter)
+    #     if len(chapter) > 50000:
+    #         chunks = splitter.split_documents([doc])
+    #         final_chunks.extend(chunks)
+    #     else:
+    #         final_chunks.append(doc)
+
+    # return final_chunks
 
 
 
@@ -89,24 +98,24 @@ class SafeLlamaCpp(BaseLlamaCpp):
 # Integrate the local LLM into a RetrievalQA chain using the patched class.
 from langchain.chains import RetrievalQA
 
+llm = SafeLlamaCpp( #for tinyllama
+    model_path=model_path,
+    n_ctx=2048,
+    temperature=0.1,
+    max_tokens=256,
+    verbose=False
+)
+
 # llm = SafeLlamaCpp(
 #     model_path=model_path,
 #     n_ctx=32000,
-#     temperature=0.1,
-#     max_tokens=256,
-#     verbose=False
+#     n_threads=6,
+#     use_mlock=True,
+#     use_mmap=True,
+#     verbose=False,
+#     max_tokens=512,  # ← Explicitly set this to avoid early cuts
+#     temperature=0.1
 # )
-
-llm = SafeLlamaCpp(
-    model_path=model_path,
-    n_ctx=32000,
-    n_threads=6,
-    use_mlock=True,
-    use_mmap=True,
-    verbose=False,
-    max_tokens=512,  # ← Explicitly set this to avoid early cuts
-    temperature=0.1
-)
 
 
 
