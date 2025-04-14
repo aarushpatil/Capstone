@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FiLogOut, FiPlus, FiFolder, FiTrash } from "react-icons/fi";
+import {
+  FiLogOut,
+  FiPlus,
+  FiFolder,
+  FiTrash,
+  FiArrowLeft,
+} from "react-icons/fi";
 
-const Chatbot = ({ user }) => {
+const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -13,11 +19,19 @@ const Chatbot = ({ user }) => {
 
   useEffect(() => {
     fetchCollections();
-  }, []);
+    // Set the active collection from the prop if provided
+    if (initialCollection) {
+      setActiveCollection(initialCollection);
+      fetchChatHistory(initialCollection);
+    }
+  }, [initialCollection]);
 
   const fetchCollections = async () => {
     try {
-      const response = await axios.get("http://localhost:5050/api/collections", { withCredentials: true });
+      const response = await axios.get(
+        "http://localhost:5050/api/collections",
+        { withCredentials: true }
+      );
       if (response.data.status === "success") {
         setCollections(response.data.collections);
       }
@@ -45,8 +59,15 @@ const Chatbot = ({ user }) => {
   const deleteCollection = async (collectionId) => {
     if (isLoading) return;
     try {
-      await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
-      setCollections(collections.filter(collection => collection.collectionId !== collectionId));
+      await axios.delete(
+        `http://localhost:5050/api/collections/${collectionId}`,
+        { withCredentials: true }
+      );
+      setCollections(
+        collections.filter(
+          (collection) => collection.collectionId !== collectionId
+        )
+      );
       if (activeCollection === collectionId) {
         setActiveCollection(null);
         setConversation([]);
@@ -78,64 +99,82 @@ const Chatbot = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  if (!message.trim() || isLoading || !activeCollection) return;
+    if (!message.trim() || isLoading || !activeCollection) return;
 
-  const isFirstMessage = conversation.length === 0; // Check if it's the first message
-  // If it's the first message, rename the collection
-  if (isFirstMessage) {
-    await renameCollection(activeCollection, message);
-  }
+    const isFirstMessage = conversation.length === 0; // Check if it's the first message
+    // If it's the first message, rename the collection
+    if (isFirstMessage) {
+      await renameCollection(activeCollection, message);
+    }
 
-  setIsLoading(true);
-  setConversation((prev) => [...prev, { role: "user", content: message }]);
+    setIsLoading(true);
+    setConversation((prev) => [...prev, { role: "user", content: message }]);
 
-  try {
-    const response = await axios.post(
-      `http://localhost:5050/api/collections/${activeCollection}/chat`,
-      { message },
-      { withCredentials: true }
-    );
+    try {
+      const response = await axios.post(
+        `http://localhost:5050/api/collections/${activeCollection}/chat`,
+        { message },
+        { withCredentials: true }
+      );
 
-    setConversation((prev) => [...prev, { role: "assistant", content: response.data.response }]);
+      setConversation((prev) => [
+        ...prev,
+        { role: "assistant", content: response.data.response },
+      ]);
+    } catch (error) {
+      console.error("Error sending message", error);
+    } finally {
+      setMessage("");
+      setIsLoading(false);
+    }
+  };
 
-    
-  } catch (error) {
-    console.error("Error sending message", error);
-  } finally {
-    setMessage("");
-    setIsLoading(false);
-  }
-};
-
-// Function to rename the collection
-const renameCollection = async (collectionId, newNamer) => {
-  try {
-    const newName = newNamer.length > 20 ? newNamer.substring(0, 20) + "..." : newNamer;
-    await axios.post(
-      "http://localhost:5050/api/rename_collection",
-      { collectionId, newName },
-      { withCredentials: true }
-    );
-    fetchCollections(); // Refresh collections to show the updated name
-  } catch (error) {
-    console.error("Error renaming collection", error);
-  }
-};
+  // Function to rename the collection
+  const renameCollection = async (collectionId, newNamer) => {
+    try {
+      const newName =
+        newNamer.length > 20 ? newNamer.substring(0, 20) + "..." : newNamer;
+      await axios.post(
+        "http://localhost:5050/api/rename_collection",
+        { collectionId, newName },
+        { withCredentials: true }
+      );
+      fetchCollections(); // Refresh collections to show the updated name
+    } catch (error) {
+      console.error("Error renaming collection", error);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md p-4 flex flex-col">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Collections</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">Collections</h2>
+            <button
+              onClick={onBackToCollections}
+              className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm"
+            >
+              <FiArrowLeft /> Back
+            </button>
+          </div>
           <ul className="space-y-2">
             {collections.map((collection) => (
               <li
                 key={collection.collectionId}
                 className={`flex items-center justify-between px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded transition ${
-                  activeCollection === collection.collectionId ? "bg-gray-200" : ""
-                } ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                onClick={!isLoading ? () => fetchChatHistory(collection.collectionId) : undefined}
+                  activeCollection === collection.collectionId
+                    ? "bg-gray-200"
+                    : ""
+                } ${
+                  isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                onClick={
+                  !isLoading
+                    ? () => fetchChatHistory(collection.collectionId)
+                    : undefined
+                }
               >
                 <div className="flex items-center gap-2">
                   <FiFolder className="text-blue-500" />
@@ -143,9 +182,18 @@ const renameCollection = async (collectionId, newNamer) => {
                 </div>
                 <FiTrash
                   className={`text-red-500 hover:text-red-700 ${
-                    isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                    isLoading
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer"
                   }`}
-                  onClick={!isLoading ? () => deleteCollection(collection.collectionId) : undefined}
+                  onClick={
+                    !isLoading
+                      ? (e) => {
+                          e.stopPropagation();
+                          deleteCollection(collection.collectionId);
+                        }
+                      : undefined
+                  }
                 />
               </li>
             ))}
@@ -161,7 +209,9 @@ const renameCollection = async (collectionId, newNamer) => {
           </ul>
         </div>
         <button
-          onClick={() => (window.location.href = "http://localhost:5050/logout")}
+          onClick={() =>
+            (window.location.href = "http://localhost:5050/logout")
+          }
           className="mt-auto flex items-center gap-2 text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-md transition"
         >
           <FiLogOut />
@@ -186,7 +236,12 @@ const renameCollection = async (collectionId, newNamer) => {
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-gray-50">
           {conversation.map((msg, index) => (
-            <div key={index} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              key={index}
+              className={`flex ${
+                msg.role === "user" ? "justify-end" : "justify-start"
+              }`}
+            >
               <div
                 className={`max-w-xl px-4 py-3 rounded-xl shadow ${
                   msg.role === "user"
@@ -208,7 +263,10 @@ const renameCollection = async (collectionId, newNamer) => {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 px-6 py-4 bg-white border-t shadow-inner">
+        <form
+          onSubmit={handleSubmit}
+          className="flex items-center gap-2 px-6 py-4 bg-white border-t shadow-inner"
+        >
           <input
             type="text"
             value={message}
