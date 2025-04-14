@@ -35,7 +35,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 COPY . .
 
 # Install frontend dependencies (assumes frontend is in /app/frontend)
-RUN cd frontend && npm install
+# RUN cd frontend && npm install
+RUN bash -c "cd frontend && npm install"
 
 #build the image with when in directory with dockerfile:
 #docker build -t final_image .
