@@ -177,7 +177,7 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
                 </p>
               ) : (
                 <>
-                  <FiFolder className="text-blue-500 text-5xl mx-auto mb-4" />
+                  {/* <FiFolder className="text-blue-500 text-5xl mx-auto mb-4" /> */}
                   <p className="text-gray-600 mb-4 text-lg">
                     You don't have any collections yet.
                   </p>
@@ -185,39 +185,28 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
                     onClick={() => setIsCreating(true)}
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition mx-auto shadow-sm"
                   >
-                    <FiPlus />
+                    {/* <FiPlus /> */}
                     Create Your First Collection
                   </button>
                 </>
               )}
             </div>
-          ) : (
-            // Increased gap between collection cards
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
+          ) :(
+            <div className="w-full">
               {filteredCollections.map((collection) => (
                 <div
                   key={collection.collectionId}
-                  onClick={() => handleCollectionClick(collection.collectionId)}
-                  className="
-        bg-white rounded-lg shadow-md p-6
-        hover:shadow-lg transition-all duration-200
-        cursor-pointer border border-gray-200 hover:border-blue-400
-        transform hover:-translate-y-1
-      "
+                  onClick={() =>
+                    handleCollectionClick(collection.collectionId)
+                  }
+                  className="bg-white flex w-full items-center p-4 mb-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 hover:border-blue-400 transform hover:-translate-y-1"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <FiFolder className="text-blue-600 text-xl" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-800">
-                      {collection.name}
-                    </h3>
-                  </div>
-                  <div className="pt-2 border-t border-gray-100">
-                    <p className="text-sm text-gray-600">
-                      Click to start chatting
-                    </p>
-                  </div>
+                  {/* <div className="bg-blue-100 w-10 h-10">
+                    <FiFolder className="text-blue-600" />
+                  </div> */}
+                  <span className="text-lg font-medium text-gray-800 pl-10 ml-100">
+                    {`\t${collection.name}`}
+                  </span>
                 </div>
               ))}
             </div>
