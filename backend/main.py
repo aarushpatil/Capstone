@@ -17,7 +17,7 @@ from CollectionManager import *
 # Flask App Setup
 # ------------------------------------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Loaded from .env
+app.secret_key = "664cb08f7c25c9a63ab8630e18c21881a9a358318d62580bc3e80a479edad489"
 
 # Configure session cookie settings for local development.
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
