@@ -9,24 +9,44 @@ db_path = os.environ.get("SQLITE_DB", "database.db")
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
+
 def init_db():
-    # Create the 'users' table.
-    cursor.execute('''
+    # Create the 'users' table if it doesn't exist
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            password TEXT
         )
-    ''')
+    """
+    )
+
+    # Add new columns if they don't exist
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN email TEXT UNIQUE")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN password TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     # Create the 'collections' table.
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS collections (
             collection_id TEXT PRIMARY KEY,
             user_id TEXT,
             name TEXT,
             FOREIGN KEY(user_id) REFERENCES users(id)
         )
-    ''')
+    """
+    )
     # Create the 'chat_history' table.
-    cursor.execute('''
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS chat_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             collection_id TEXT,
@@ -35,60 +55,97 @@ def init_db():
             timestamp TEXT,
             FOREIGN KEY(collection_id) REFERENCES collections(collection_id)
         )
-    ''')
+    """
+    )
     conn.commit()
+
 
 # Initialize the database tables.
 init_db()
 
-def makeUser(user_id):
+
+def makeUser(user_id, email=None, password=None):
     # Check if the user exists.
     cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     if not user:
-        cursor.execute("INSERT INTO users (id) VALUES (?)", (user_id,))
+        cursor.execute(
+            "INSERT INTO users (id, email, password) VALUES (?, ?, ?)",
+            (user_id, email, password),
+        )
         conn.commit()
         print(f"User {user_id} created in database.")
     else:
         print(f"User {user_id} found in database.")
+
+
+def create_user(email, password):
+    # Generate a unique user ID
+    user_id = str(uuid.uuid4())
+
+    try:
+        cursor.execute(
+            "INSERT INTO users (id, email, password) VALUES (?, ?, ?)",
+            (user_id, email, password),
+        )
+        conn.commit()
+        return user_id
+    except sqlite3.IntegrityError:
+        # Email already exists
+        return None
+
+
+def get_user_by_email(email):
+    cursor.execute(
+        "SELECT id, email, password FROM users WHERE email = ?",
+        (email,),
+    )
+    user = cursor.fetchone()
+    if user:
+        return {
+            "id": user[0],
+            "email": user[1],
+            "password": user[2],
+        }
+    return None
+
 
 def add_collection(user_id, collection_name):
     # Generate a unique collection ID.
     collection_id = str(uuid.uuid4())
     cursor.execute(
         "INSERT INTO collections (collection_id, user_id, name) VALUES (?, ?, ?)",
-        (collection_id, user_id, collection_name)
+        (collection_id, user_id, collection_name),
     )
     conn.commit()
     return collection_id
+
 
 def delete_collection(user_id, collection_id):
     # Delete the collection only if it belongs to the specified user.
     cursor.execute(
         "DELETE FROM collections WHERE collection_id = ? AND user_id = ?",
-        (collection_id, user_id)
+        (collection_id, user_id),
     )
     # Also remove any associated chat history.
-    cursor.execute(
-        "DELETE FROM chat_history WHERE collection_id = ?",
-        (collection_id,)
-    )
+    cursor.execute("DELETE FROM chat_history WHERE collection_id = ?", (collection_id,))
     conn.commit()
+
 
 def get_collections(user_id):
     cursor.execute(
-        "SELECT collection_id, name FROM collections WHERE user_id = ?",
-        (user_id,)
+        "SELECT collection_id, name FROM collections WHERE user_id = ?", (user_id,)
     )
     results = cursor.fetchall()
     # Format the rows as a list of dictionaries.
     return [{"collectionId": row[0], "name": row[1]} for row in results]
 
+
 def add_message(user_id, collection_id, role, content):
     # Verify that the collection belongs to the user.
     cursor.execute(
         "SELECT collection_id FROM collections WHERE collection_id = ? AND user_id = ?",
-        (collection_id, user_id)
+        (collection_id, user_id),
     )
     if not cursor.fetchone():
         print("Collection not found for user.")
@@ -97,26 +154,28 @@ def add_message(user_id, collection_id, role, content):
     timestamp = datetime.utcnow().isoformat()
     cursor.execute(
         "INSERT INTO chat_history (collection_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-        (collection_id, role, content, timestamp)
+        (collection_id, role, content, timestamp),
     )
     conn.commit()
+
 
 def get_chat_history(user_id, collection_id):
     # Confirm that the given collection belongs to the user.
     cursor.execute(
         "SELECT collection_id FROM collections WHERE collection_id = ? AND user_id = ?",
-        (collection_id, user_id)
+        (collection_id, user_id),
     )
     if not cursor.fetchone():
         return []
     # Retrieve the chat history ordered by insertion.
     cursor.execute(
         "SELECT role, content, timestamp FROM chat_history WHERE collection_id = ? ORDER BY id",
-        (collection_id,)
+        (collection_id,),
     )
     rows = cursor.fetchall()
     print("The chat history retrieved is: " + str(rows))
     return [{"role": row[0], "content": row[1], "timestamp": row[2]} for row in rows]
+
 
 # Example usage:
 if __name__ == "__main__":

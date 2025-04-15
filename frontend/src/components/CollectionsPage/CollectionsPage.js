@@ -88,9 +88,18 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
           {user && (
             <div className="flex items-center gap-2">
               <button
-                onClick={() =>
-                  (window.location.href = "http://localhost:5050/logout")
-                }
+                onClick={async () => {
+                  try {
+                    await axios.post(
+                      "http://localhost:5050/api/logout",
+                      {},
+                      { withCredentials: true }
+                    );
+                    window.location.reload();
+                  } catch (error) {
+                    console.error("Logout error:", error);
+                  }
+                }}
                 className="flex items-center justify-center gap-1 text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-md transition"
               >
                 <FiLogOut />

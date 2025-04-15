@@ -1,10 +1,12 @@
 import os, sys
 from dotenv import load_dotenv
+
 load_dotenv()  # Load environment variables from .env
 
 from flask import Flask, redirect, url_for, session, request, jsonify
 from flask_cors import CORS
-from authlib.integrations.flask_client import OAuth
+
+# from authlib.integrations.flask_client import OAuth  # No longer needed for simple auth
 # from werkzeug.exceptions import ClientDisconnected
 
 # Import the helper from llm.py to generate responses from the LLM.
@@ -18,70 +20,101 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")  # Loaded from .env
 
 # Configure session cookie settings for local development.
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
 
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+
 
 @app.errorhandler(ConnectionResetError)
 def handle_client_disconnect(error):
     print("Client disconnected abruptly.", flush=True)
     return "", 499  # Custom status for aborted requests
 
-# ------------------------------------------
-# Google OAuth Setup
-# ------------------------------------------
-oauth = OAuth(app)
-google = oauth.register(
-    name="google",
-    client_id=os.environ.get("GOOGLE_CLIENT_ID"),  # Loaded from .env
-    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),  # Loaded from .env
-    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-    client_kwargs={"scope": "openid email profile"},
-)
 
 # ------------------------------------------
-# OAuth Routes
+# Authentication Routes
 # ------------------------------------------
 
-@app.route("/login")
-def login():
-    redirect_uri = url_for("authorize", _external=True)
-    print("Session before redirect:", dict(session), flush=True)
-    return google.authorize_redirect(redirect_uri)
 
-@app.route("/authorize")
-def authorize():
+@app.route("/api/register", methods=["POST"])
+def register():
     try:
-        token = google.authorize_access_token()  # Exchange the code for a token
-        metadata = google.load_server_metadata()
-        userinfo_endpoint = metadata.get("userinfo_endpoint")
-        print("Loaded userinfo endpoint:", userinfo_endpoint, flush=True)
-        if not userinfo_endpoint:
-            userinfo_endpoint = "https://openidconnect.googleapis.com/v1/userinfo"
-            print("Using fallback userinfo endpoint:", userinfo_endpoint, flush=True)
-        resp = google.get(userinfo_endpoint)
-        user_info = resp.json()
-        session["user"] = user_info
-        print("Logged in user:", user_info["sub"], flush=True)
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
 
+        # Basic validation
+        if not email or not password:
+            return (
+                jsonify(
+                    {"status": "error", "message": "Email and password are required"}
+                ),
+                400,
+            )
 
-        #add to db
-        makeUser(user_info["sub"])
+        # Check if email already exists
+        existing_user = get_user_by_email(email)
+        if existing_user:
+            return jsonify({"status": "error", "message": "Email already exists"}), 400
 
-        return redirect("http://localhost:3000")  # Redirect back to your React app
+        # Create the user
+        user_id = create_user(email, password)
+        if user_id:
+            # Set up the session
+            user_info = {"sub": user_id, "email": email}
+            session["user"] = user_info
+            return jsonify({"status": "success", "user": user_info})
+        else:
+            return jsonify({"status": "error", "message": "Failed to create user"}), 500
     except Exception as e:
-        print("Error during authorization:", e, flush=True)
-        return f"An error occurred during authorization: {e}", 500
+        print("Error during registration:", e, flush=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route("/logout")
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    try:
+        data = request.get_json()
+        email = data.get("email")
+        password = data.get("password")
+
+        # Basic validation
+        if not email or not password:
+            return (
+                jsonify(
+                    {"status": "error", "message": "Email and password are required"}
+                ),
+                400,
+            )
+
+        # Get user
+        user = get_user_by_email(email)
+        if not user or user["password"] != password:
+            return (
+                jsonify({"status": "error", "message": "Invalid email or password"}),
+                401,
+            )
+
+        # Set up the session
+        user_info = {"sub": user["id"], "email": user["email"]}
+        session["user"] = user_info
+        return jsonify({"status": "success", "user": user_info})
+    except Exception as e:
+        print("Error during login:", e, flush=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/logout", methods=["POST"])
 def logout():
     session.pop("user", None)
-    return redirect("http://localhost:3000")
+    return jsonify({"status": "success"})
+
 
 # ------------------------------------------
 # Auth-Protected API Routes
 # ------------------------------------------
+
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
@@ -98,7 +131,16 @@ def chat():
         return jsonify({"response": llm_response, "status": "success"})
     except Exception as e:
         print("Error in /api/chat:", str(e), flush=True)
-        return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
+        return (
+            jsonify(
+                {
+                    "response": f"Error processing your request: {str(e)}",
+                    "status": "error",
+                }
+            ),
+            500,
+        )
+
 
 @app.route("/api/user", methods=["GET"])
 def get_user():
@@ -108,7 +150,8 @@ def get_user():
     return jsonify({"status": "error", "message": "User not logged in"}), 401
 
 
-#non auth protected routes:
+# non auth protected routes:
+
 
 @app.route("/chatNoAuth", methods=["POST"])
 def chatNoAuth():
@@ -126,7 +169,15 @@ def chatNoAuth():
         return jsonify({"response": llm_response, "status": "success"})
     except Exception as e:
         print("Error in /api/chat:", str(e), flush=True)
-        return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
+        return (
+            jsonify(
+                {
+                    "response": f"Error processing your request: {str(e)}",
+                    "status": "error",
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/test", methods=["GET"])
@@ -134,13 +185,13 @@ def test():
     return jsonify({"status": "success", "message": "Backend is working!"})
 
 
+# Get collections for user
+# Add Collection for user
+# delete collection for user
 
-#Get collections for user
-#Add Collection for user
-#delete collection for user
+# ChatHistory for Collection
+# Add to chatHistory for collection
 
-#ChatHistory for Collection
-#Add to chatHistory for collection
 
 @app.route("/api/collections", methods=["POST"])
 def create_collection():
@@ -154,6 +205,7 @@ def create_collection():
 
     return jsonify({"status": "success", "collectionId": collection_id})
 
+
 @app.route("/api/collections", methods=["GET"])
 def fetch_collections():
     if "user" not in session:
@@ -161,8 +213,9 @@ def fetch_collections():
 
     user_id = session["user"]["sub"]
     collections = get_collections(user_id)
-    
+
     return jsonify({"status": "success", "collections": collections})
+
 
 @app.route("/api/collections/<collection_id>", methods=["DELETE"])
 def remove_collection(collection_id):
@@ -182,8 +235,9 @@ def fetch_chat_history(collection_id):
 
     user_id = session["user"]["sub"]
     history = get_chat_history(user_id, collection_id)
-    
+
     return jsonify({"status": "success", "chatHistory": history})
+
 
 @app.route("/api/collections/<collection_id>/chat", methods=["POST"])
 def chat_in_collection(collection_id):
@@ -193,8 +247,6 @@ def chat_in_collection(collection_id):
         user_id = session["user"]["sub"]
         data = request.get_json()
         user_message = data.get("message", "").strip()
-
-
 
         user_id = session["user"]["sub"]
         history = get_chat_history(user_id, collection_id)
@@ -207,7 +259,15 @@ def chat_in_collection(collection_id):
         # Save assistant response
         add_message(user_id, collection_id, "assistant", llm_response)
     except Exception as e:
-        return jsonify({"response": f"Error processing your request: {str(e)}", "status": "error"}), 500
+        return (
+            jsonify(
+                {
+                    "response": f"Error processing your request: {str(e)}",
+                    "status": "error",
+                }
+            ),
+            500,
+        )
 
     return jsonify({"response": llm_response, "status": "success"})
 
@@ -216,7 +276,7 @@ def chat_in_collection(collection_id):
 def rename_collection():
     if "user" not in session:
         return jsonify({"status": "error", "message": "Not authorized"}), 401
-    
+
     data = request.get_json()
     user_id = session["user"]["sub"]
     collection_id = data.get("collectionId")
@@ -232,11 +292,10 @@ def rename_collection():
     # Update the collection name
     users_collection.update_one(
         {"_id": user_id, "collections.collectionId": collection_id},
-        {"$set": {"collections.$.name": new_name}}
+        {"$set": {"collections.$.name": new_name}},
     )
 
     return jsonify({"status": "success", "message": "Collection renamed"})
-
 
 
 # ------------------------------------------
