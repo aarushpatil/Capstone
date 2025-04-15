@@ -6,3 +6,4 @@ capstoneVenv
 .env
 __pycache__
 backend/database.db
+backend/database.db
