@@ -71,21 +71,11 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <header
-        className="
-          px-6 py-6           /* Increased padding for breathing room */
-          bg-white shadow
-          flex items-center
-          justify-between
-          mb-4                /* Added margin-bottom to separate header from content */
-        "
-      >
+      <header className="px-6 py-6 bg-white shadow flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-gray-800">
           Transportation Chatbot
         </h1>
         <div className="flex items-center gap-8">
-          {" "}
-          {/* Changed gap from 4 to 8 for more space */}
           {/* Search */}
           <div className="relative">
             <input
@@ -94,7 +84,7 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            />
           </div>
           {/* User/Logout */}
           {user && (
@@ -185,24 +175,33 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
             <div className="text-center py-16 bg-white rounded-lg shadow-md border border-gray-200">
               <p>No Collections Yet!</p>
             </div>
-          ) :(
+          ) : (
             <div className="w-full">
-              {filteredCollections.map((collection) => (
-                <div
-                  key={collection.collectionId}
-                  onClick={() =>
-                    handleCollectionClick(collection.collectionId)
-                  }
-                  className="bg-white flex w-full items-center p-4 mb-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 hover:border-blue-400 transform hover:-translate-y-1"
-                >
-                  {/* <div className="bg-blue-100 w-10 h-10">
-                    <FiFolder className="text-blue-600" />
-                  </div> */}
-                  <span className="text-lg font-medium text-gray-800 pl-10 ml-100">
-                    {`\t${collection.name}`}
-                  </span>
-                </div>
-              ))}
+              {filteredCollections.map((collection) => {
+                const isDeleting = deletingCollectionId === collection.collectionId;
+                return (
+                  <div
+                    key={collection.collectionId}
+                    onClick={() => handleCollectionClick(collection.collectionId)}
+                    className="bg-white flex justify-between items-center w-full p-4 mb-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer border border-gray-200 hover:border-blue-400 transform hover:-translate-y-1"
+                  >
+                    <span className="text-lg font-medium text-gray-800">
+                      {collection.name}
+                    </span>
+                    <FiTrash
+                      className={`text-red-500 hover:text-red-700 ${isDeleting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      onClick={
+                        !isDeleting
+                          ? (e) => {
+                              e.stopPropagation();
+                              deleteCollection(collection.collectionId);
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
