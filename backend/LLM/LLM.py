@@ -63,7 +63,7 @@ else:
 
 
 # Create a retriever from the vector store.
-retriever = db.as_retriever(search_kwargs={"k": 1}) #higher this number is the more info chroma will retrieve
+retriever = db.as_retriever(search_kwargs={"k": 3}) #higher this number is the more info chroma will retrieve
 
 # Define a custom prompt template to constrain the output.
 
