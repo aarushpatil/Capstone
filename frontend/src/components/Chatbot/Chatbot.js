@@ -228,7 +228,7 @@ const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
           </h1>
           {user && (
             <span className="text-sm text-gray-600">
-              Welcome, <span className="font-large">{user.name}</span>
+              {/* Welcome, <span className="font-large">{user.name}</span> */}
             </span>
           )}
         </header>
