@@ -75,14 +75,13 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
           {/* Changed gap from 4 to 8 for more space */}
           {/* Search */}
           <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search collections..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              />
           </div>
           {/* User/Logout */}
           {user && (
@@ -171,25 +170,7 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
             </div>
           ) : filteredCollections.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-lg shadow-md border border-gray-200">
-              {searchTerm ? (
-                <p className="text-gray-600 mb-4">
-                  No collections found matching "{searchTerm}"
-                </p>
-              ) : (
-                <>
-                  {/* <FiFolder className="text-blue-500 text-5xl mx-auto mb-4" /> */}
-                  <p className="text-gray-600 mb-4 text-lg">
-                    You don't have any collections yet.
-                  </p>
-                  <button
-                    onClick={() => setIsCreating(true)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition mx-auto shadow-sm"
-                  >
-                    {/* <FiPlus /> */}
-                    Create Your First Collection
-                  </button>
-                </>
-              )}
+              <p>No Collections Yet!</p>
             </div>
           ) :(
             <div className="w-full">
