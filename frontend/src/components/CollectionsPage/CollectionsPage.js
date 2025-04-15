@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FiLogOut, FiPlus, FiFolder, FiSearch } from "react-icons/fi";
+import { FiLogOut, FiPlus, FiFolder, FiSearch, FiTrash } from "react-icons/fi";
 
 const CollectionsPage = ({ user, onSelectCollection }) => {
   const [collections, setCollections] = useState([]);
@@ -8,6 +8,7 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
   const [newCollectionName, setNewCollectionName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deletingCollectionId, setDeletingCollectionId] = useState(null);
 
   useEffect(() => {
     fetchCollections();
@@ -44,6 +45,18 @@ const CollectionsPage = ({ user, onSelectCollection }) => {
       }
     } catch (error) {
       console.error("Error creating collection", error);
+    }
+  };
+
+  const deleteCollection = async (collectionId) => {
+    setDeletingCollectionId(collectionId);
+    try {
+      await axios.delete(`http://localhost:5050/api/collections/${collectionId}`, { withCredentials: true });
+      fetchCollections();
+    } catch (error) {
+      console.error("Error deleting collection", error);
+    } finally {
+      setDeletingCollectionId(null);
     }
   };
 
