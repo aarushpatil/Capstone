@@ -6,16 +6,12 @@ load_dotenv()  # Load environment variables from .env
 from flask import Flask, redirect, url_for, session, request, jsonify
 from flask_cors import CORS
 
-# from authlib.integrations.flask_client import OAuth  # No longer needed for simple auth
-# from werkzeug.exceptions import ClientDisconnected
-
 # Import the helper from llm.py to generate responses from the LLM.
 from LLM.LLM import get_llm_response
 from CollectionManager import *
 
-# ------------------------------------------
-# Flask App Setup
-# ------------------------------------------
+## Flask Setup
+
 app = Flask(__name__)
 app.secret_key = "664cb08f7c25c9a63ab8630e18c21881a9a358318d62580bc3e80a479edad489"
 
@@ -31,11 +27,7 @@ def handle_client_disconnect(error):
     print("Client disconnected abruptly.", flush=True)
     return "", 499  # Custom status for aborted requests
 
-
-# ------------------------------------------
-# Authentication Routes
-# ------------------------------------------
-
+## Authentication Routes
 
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -110,11 +102,7 @@ def logout():
     session.pop("user", None)
     return jsonify({"status": "success"})
 
-
-# ------------------------------------------
-# Auth-Protected API Routes
-# ------------------------------------------
-
+## API Routes
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
@@ -149,9 +137,7 @@ def get_user():
         return jsonify({"status": "success", "user": user})
     return jsonify({"status": "error", "message": "User not logged in"}), 401
 
-
-# non auth protected routes:
-
+## Non auth protected routes:
 
 @app.route("/chatNoAuth", methods=["POST"])
 def chatNoAuth():
@@ -183,15 +169,6 @@ def chatNoAuth():
 @app.route("/api/test", methods=["GET"])
 def test():
     return jsonify({"status": "success", "message": "Backend is working!"})
-
-
-# Get collections for user
-# Add Collection for user
-# delete collection for user
-
-# ChatHistory for Collection
-# Add to chatHistory for collection
-
 
 @app.route("/api/collections", methods=["POST"])
 def create_collection():
@@ -298,8 +275,6 @@ def rename_collection():
     return jsonify({"status": "success", "message": "Collection renamed"})
 
 
-# ------------------------------------------
-# Run App
-# ------------------------------------------
+# run the app
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=True)

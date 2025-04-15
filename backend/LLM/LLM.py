@@ -13,17 +13,13 @@ model_path = hf_hub_download(
     cache_dir="."
 )
 
-
-# model_path = hf_hub_download(repo_id="TheBloke/CapybaraHermes-2.5-Mistral-7B-GGUF", filename="capybarahermes-2.5-mistral-7b.Q4_K_M.gguf", cache_dir=".")
-
-
 # Document loaders and text splitting
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Dynamically determine the current script directory and set the manuals directory.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-manuals_dir = os.path.join(BASE_DIR, "./")  # Adjust if needed
+manuals_dir = os.path.join(BASE_DIR, "./") 
 
 
 def getTextSplitted():
@@ -46,23 +42,11 @@ def getTextSplitted():
     return final_chunks
 
 
-    # final_chunks = []
-    # for chapter in manual_chapters:
-    #     doc = Document(page_content=chapter)
-    #     if len(chapter) > 50000:
-    #         chunks = splitter.split_documents([doc])
-    #         final_chunks.extend(chunks)
-    #     else:
-    #         final_chunks.append(doc)
-
-    # return final_chunks
-
-
 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
-embeddings = HuggingFaceEmbeddings()  # Uses all-mpnet-base-v2 by default.
+embeddings = HuggingFaceEmbeddings()
 
 
 persist_directory = "./chroma_db"  # Specify a directory to persist the database.
@@ -73,7 +57,7 @@ else:
     text_splitted = getTextSplitted()
     db = Chroma.from_documents(text_splitted, embeddings, persist_directory=persist_directory)
     print("Created new Chroma database.")
-    db.persist() #persist to disk
+    db.persist() # persist to disk
 
 
 
@@ -105,19 +89,6 @@ llm = SafeLlamaCpp( #for tinyllama
     max_tokens=256,
     verbose=False
 )
-
-# llm = SafeLlamaCpp(
-#     model_path=model_path,
-#     n_ctx=32000,
-#     n_threads=6,
-#     use_mlock=True,
-#     use_mmap=True,
-#     verbose=False,
-#     max_tokens=512,  # ← Explicitly set this to avoid early cuts
-#     temperature=0.1
-# )
-
-
 
 #response quality went down by using context somehow
 def get_llm_response(query: str, context = "") -> str:
@@ -157,15 +128,6 @@ def get_llm_response(query: str, context = "") -> str:
     )
     try:
         result = qa_chain.invoke({"query": query})
-        
-        # print("Chroma DB Retrieved Documents: --------")
-        # for doc in result["source_documents"]:
-        #     print("Page Content:")
-        #     print(doc.page_content)
-        #     print("Metadata:")
-        #     print(doc.metadata)
-        #     print("-" * 20)
-        # print("Chroma DB Retrieved Documents End: --------")
 
         output = "=" * 55
         output += " Chroma DB Retrieved Documents: \n"
@@ -175,7 +137,7 @@ def get_llm_response(query: str, context = "") -> str:
             output += "Metadata:\n"
             output += f"{doc.metadata}\n"
             output += "-" * 20 + "\n"
-        # output += "Chroma DB Retrieved Documents End "
+
         output += ("=" * 55)
 
         retVal = result["result"] + "\n\n\n\n\n" + output
