@@ -210,7 +210,7 @@ const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
         </div>
         <button
           onClick={() =>
-            (window.location.href = "http://localhost:5050/logout")
+            (window.location.href = "http://localhost:5050/api/logout")
           }
           className="mt-auto flex items-center gap-2 text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-md transition"
         >
