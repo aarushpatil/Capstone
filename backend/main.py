@@ -10,6 +10,17 @@ from flask_cors import CORS
 from LLM.LLM import get_llm_response
 from CollectionManager import *
 
+# at the top, alongside your other imports from CollectionManager:
+from CollectionManager import (
+    add_collection,
+    get_collections,
+    delete_collection,
+    get_chat_history,
+    add_message,
+    rename_collection as db_rename_collection,   # <— our new helper
+)
+
+
 ## Flask Setup
 
 app = Flask(__name__)
@@ -255,24 +266,20 @@ def rename_collection():
         return jsonify({"status": "error", "message": "Not authorized"}), 401
 
     data = request.get_json()
-    user_id = session["user"]["sub"]
+    user_id       = session["user"]["sub"]
     collection_id = data.get("collectionId")
-    new_name = data.get("newName", "").strip()
+    new_name      = (data.get("newName") or "").strip()
 
     if not collection_id or not new_name:
         return jsonify({"status": "error", "message": "Invalid data"}), 400
 
-    user = users_collection.find_one({"_id": user_id})
-    if not user:
-        return jsonify({"status": "error", "message": "User not found"}), 404
-
-    # Update the collection name
-    users_collection.update_one(
-        {"_id": user_id, "collections.collectionId": collection_id},
-        {"$set": {"collections.$.name": new_name}},
-    )
-
-    return jsonify({"status": "success", "message": "Collection renamed"})
+    try:
+        # This will safely do nothing if the row doesn't exist
+        db_rename_collection(user_id, collection_id, new_name)
+        return jsonify({"status": "success", "message": "Collection renamed"})
+    except Exception as e:
+        # in case something unexpected goes wrong
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # run the app

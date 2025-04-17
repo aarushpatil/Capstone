@@ -186,3 +186,18 @@ if __name__ == "__main__":
     add_message(user_id, collection_id, "assistant", "Hello! How can I help you?")
     history = get_chat_history(user_id, collection_id)
     print("Final chat history:", history)
+
+def rename_collection(user_id: str, collection_id: str, new_name: str):
+    """
+    Update the name of a collection owned by user_id.
+    """
+    cursor.execute(
+        """
+        UPDATE collections
+           SET name = ?
+         WHERE collection_id = ?
+           AND user_id = ?
+        """,
+        (new_name, collection_id, user_id),
+    )
+    conn.commit()
