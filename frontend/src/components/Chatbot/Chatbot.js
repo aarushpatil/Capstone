@@ -7,8 +7,10 @@ import {
   FiTrash,
   FiArrowLeft,
 } from "react-icons/fi";
+import Models from "./Models";
 
 const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
+  const [selectedModel, setSelectedModel] = useState("tinyllama");
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +115,7 @@ const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
     try {
       const response = await axios.post(
         `http://localhost:5050/api/collections/${activeCollection}/chat`,
-        { message },
+        { message, model: selectedModel },
         { withCredentials: true }
       );
 
@@ -201,8 +203,7 @@ const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
               className={`flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-100 rounded transition ${
                 isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
               }`}
-              onClick={!isLoading ? createCollection : undefined}
-            >
+              onClick={!isLoading ? createCollection : undefined}>
               <FiPlus />
               New Collection
             </li>
@@ -223,6 +224,9 @@ const Chatbot = ({ user, initialCollection, onBackToCollections }) => {
             </span>
           )}
         </header>
+
+        {/* Model selector */}
+        <Models selected={selectedModel} onChange={setSelectedModel} />
 
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4 bg-gray-50">

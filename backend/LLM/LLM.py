@@ -17,6 +17,47 @@ model_path = hf_hub_download(
 from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+# Define available models
+def get_model_path(model_name: str) -> str:
+    models = {
+        "tinyllama": {
+            "repo_id": "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
+            "filename": "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
+        },
+        "mistral": {
+            "repo_id": "TheBloke/Mistral-7B-Instruct-v0.1-GGUF",
+            "filename": "mistral-7b-instruct-v0.1.Q8_0.gguf"
+        },
+        "wizardlm": {
+            "repo_id": "TheBloke/WizardLM-13B-V1.2-GGUF",
+            "filename": "wizardlm-13b-v1.2.Q8_0.gguf"
+        }
+    }
+
+    if model_name not in models:
+        print(colored(f"Unknown model '{model_name}'. Choose from: {list(models.keys())}", "red"))
+        sys.exit(1)
+    cfg = models[model_name]
+    print(colored(f"Downloading model '{model_name}' from {cfg['repo_id']}...", "yellow"))
+    return hf_hub_download(
+        repo_id=cfg["repo_id"],
+        filename=cfg["filename"],
+        cache_dir="."
+    )
+
+# Parse CLI args for model selection
+parser = argparse.ArgumentParser(description="Run RetrievalQA with selected LLM model")
+parser.add_argument(
+    "--model",
+    choices=["tinyllama", "mistral", "wizardlm"],
+    default="tinyllama",
+    help="Model to use"
+)
+args = parser.parse_args()
+
+# Download selected model
+model_path = get_model_path(args.model)
+
 # Dynamically determine the current script directory and set the manuals directory.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 manuals_dir = os.path.join(BASE_DIR, "./") 
